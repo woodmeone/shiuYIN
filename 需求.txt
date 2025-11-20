@@ -1,0 +1,16 @@
+核心功能：
+1. 基于项目的轮子基础，继续进行可视化的开发:
+- 文字加密：可以拖入图片，同时在加密框里输入文字和密码，进行图片隐水印加密
+- 图片加密：是另一个界面，拖入图片，在拖入水印图片，输入密码进行加密
+- 解密：拖入被加密的图片，输入密码，进行解密，输出文字或者水印图片
+
+技术选型：
+1. 后端：python做轮子，用 Flask/FastAPI 搭建轻量接口，对接前端操作。
+2. 前端：选用 Vue/React 界面开发
+
+先部署为网页应用
+
+
+https://blindwatermark.github.io/blind_watermark/#/en/README
+
+https://github.com/guofei9987/blind_watermark/

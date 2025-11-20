@@ -1,0 +1,182 @@
+import { useState } from 'react';
+import { Upload, Input, Button, message, Card, Image } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
+import axios from 'axios';
+
+const { Dragger } = Upload;
+const { TextArea } = Input;
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+const TextEncryption = () => {
+  const [carrierImage, setCarrierImage] = useState(null);
+  const [text, setText] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [encryptedImageUrl, setEncryptedImageUrl] = useState(null);
+
+  const validateFileSize = (file) => {
+    if (file.size > MAX_FILE_SIZE) {
+      message.error(`文件大小超过25MB限制（当前：${(file.size / 1024 / 1024).toFixed(2)}MB）`);
+      return false;
+    }
+    return true;
+  };
+
+  const uploadProps = {
+    name: 'file',
+    multiple: false,
+    accept: 'image/png,image/jpeg,image/jpg',
+    beforeUpload: (file) => {
+      if (!validateFileSize(file)) {
+        return Upload.LIST_IGNORE;
+      }
+      setCarrierImage(file);
+      return false;
+    },
+    onRemove: () => {
+      setCarrierImage(null);
+    },
+    fileList: carrierImage ? [carrierImage] : [],
+  };
+
+  const handleEncrypt = async () => {
+    if (!carrierImage) {
+      message.error('请上传载体图片');
+      return;
+    }
+    if (!text.trim()) {
+      message.error('请输入要加密的文字');
+      return;
+    }
+    if (!password.trim()) {
+      message.error('请输入密码');
+      return;
+    }
+
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('carrier_image', carrierImage);
+    formData.append('text', text);
+    formData.append('password', password);
+
+    try {
+      console.log('开始发送加密请求...');
+      const response = await axios.post('http://localhost:8000/api/encrypt/text', formData, {
+        responseType: 'blob',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('加密请求成功，响应:', response);
+
+      // 创建预览URL
+      const url = URL.createObjectURL(response.data);
+      setEncryptedImageUrl(url);
+      message.success('加密成功！');
+    } catch (error) {
+      console.error('加密失败，错误详情:', error);
+      console.error('错误响应:', error.response);
+
+      if (error.response?.status === 413) {
+        message.error('文件大小超过25MB限制');
+      } else if (error.response?.status === 500) {
+        // 尝试读取错误详情
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const errorData = JSON.parse(reader.result);
+            message.error(`加密失败：${errorData.detail || '服务器内部错误'}`);
+            console.error('服务器错误详情:', errorData);
+          } catch {
+            message.error('加密失败：服务器内部错误，请检查后端日志');
+          }
+        };
+        if (error.response?.data) {
+          reader.readAsText(error.response.data);
+        } else {
+          message.error('加密失败：服务器内部错误');
+        }
+      } else {
+        message.error(`加密失败：${error.message || '未知错误'}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!encryptedImageUrl) return;
+
+    const link = document.createElement('a');
+    link.href = encryptedImageUrl;
+    link.download = `encrypted_text_${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    message.success('下载成功！');
+  };
+
+  const handleReset = () => {
+    setCarrierImage(null);
+    setText('');
+    setPassword('');
+    setEncryptedImageUrl(null);
+  };
+
+  return (
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <Card title="文字加密" style={{ marginBottom: 20 }}>
+        <Dragger {...uploadProps} style={{ marginBottom: 20 }}>
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined />
+          </p>
+          <p className="ant-upload-text">点击或拖拽载体图片到此区域</p>
+          <p className="ant-upload-hint">支持 PNG、JPG 格式，文件大小不超过 25MB</p>
+        </Dragger>
+
+        <TextArea
+          placeholder="请输入要加密的文字内容"
+          rows={4}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          style={{ marginBottom: 20 }}
+        />
+
+        <Input.Password
+          placeholder="请输入加密密码"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ marginBottom: 20 }}
+        />
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button type="primary" onClick={handleEncrypt} loading={loading} style={{ flex: 1 }}>
+            开始加密
+          </Button>
+          <Button onClick={handleReset} style={{ flex: 1 }}>
+            重置
+          </Button>
+        </div>
+      </Card>
+
+      {encryptedImageUrl && (
+        <Card title="加密结果" style={{ marginBottom: 20 }}>
+          <div style={{ textAlign: 'center' }}>
+            <Image
+              src={encryptedImageUrl}
+              alt="加密后的图片"
+              style={{ maxWidth: '100%', marginBottom: 20 }}
+            />
+            <Button type="primary" onClick={handleDownload} block>
+              下载加密图片
+            </Button>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default TextEncryption;
