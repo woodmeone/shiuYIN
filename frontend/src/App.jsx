@@ -1,6 +1,8 @@
 import { Tabs } from 'antd';
 import TextEncryption from './components/TextEncryption';
 import ImageEncryption from './components/ImageEncryption';
+import TextDecryption from './components/TextDecryption';
+import ImageDecryption from './components/ImageDecryption';
 import './App.css';
 
 const { TabPane } = Tabs;
@@ -34,6 +36,12 @@ function App() {
           </TabPane>
           <TabPane tab="图片加密" key="2">
             <ImageEncryption />
+          </TabPane>
+          <TabPane tab="文字解密" key="3">
+            <TextDecryption />
+          </TabPane>
+          <TabPane tab="图片解密" key="4">
+            <ImageDecryption />
           </TabPane>
         </Tabs>
       </div>

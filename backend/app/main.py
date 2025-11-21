@@ -21,6 +21,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Text-Length"],  # 暴露自定义响应头
 )
 
 # 注册路由

@@ -85,11 +85,45 @@ class WatermarkService:
         return output_path
 
     @staticmethod
+    def calculate_text_bits_from_bytes(byte_length: int) -> int:
+        """
+        根据UTF-8字节数计算需要的比特数
+
+        Args:
+            byte_length: UTF-8字节数
+
+        Returns:
+            int: 需要的比特数
+        """
+        # 每字节8比特，加1字节(8比特)的余量以应对边界情况
+        # 实际测试：9字节=71比特，31字节=247比特
+        # 基本上是 byte_length * 8 - 1 (因为前导零被移除)
+        # 为了安全，我们使用 byte_length * 8 + 8
+        return byte_length * 8 + 8
+
+    @staticmethod
+    def calculate_exact_bits(text: str) -> int:
+        """
+        计算文本编码后的精确比特数
+
+        Args:
+            text: 文本内容
+
+        Returns:
+            int: 精确的比特数
+        """
+        # 模拟blind_watermark的编码方式
+        byte_str = bin(int(text.encode('utf-8').hex(), base=16))[2:]
+        return len(byte_str)
+
+    @staticmethod
     def decrypt(
         encrypted_image_path: str,
         password: str,
         mode: str = 'text',
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
+        wm_bits: int = 400,
+        wm_shape: tuple = (128, 128)
     ) -> dict:
         """
         解密水印
@@ -99,6 +133,8 @@ class WatermarkService:
             password: 用户密码
             mode: 'text' 或 'bit'
             output_path: 输出路径（mode='bit'时必需）
+            wm_bits: 水印比特数（mode='str'时使用，默认400比特）
+            wm_shape: 水印图片尺寸（mode='bit'时使用，默认128x128）
 
         Returns:
             dict: {'type': 'text'|'image', 'content': str|path}
@@ -109,12 +145,41 @@ class WatermarkService:
         # 初始化WaterMark
         bwm = WaterMark(password_img=password_img, password_wm=password_wm)
 
-        # 读取加密图片
-        bwm.read_img(encrypted_image_path)
-
         if mode == 'str':
             # 提取文本水印
-            extracted_text = bwm.extract(mode='str')
+            # 直接使用用户提供的比特数
+            extracted_text = bwm.extract(filename=encrypted_image_path, wm_shape=wm_bits, mode='str')
+
+            # 智能截断：移除末尾的填充字符
+            # 1. 移除末尾的空字符和替换字符
+            extracted_text = extracted_text.rstrip('\x00\ufffd ')
+
+            # 2. 检测并移除开头的乱码（如果存在）
+            # 找到第一个正常字符的位置
+            start_pos = 0
+            for i, char in enumerate(extracted_text):
+                # 如果是可打印ASCII或常见Unicode字符，认为是正常字符
+                if ord(char) >= 32 or char in '\n\r\t':
+                    start_pos = i
+                    break
+
+            # 3. 检测并移除末尾的乱码
+            # 从后向前找到第一个正常字符
+            end_pos = len(extracted_text)
+            consecutive_junk = 0
+            for i in range(len(extracted_text) - 1, -1, -1):
+                char = extracted_text[i]
+                # 不可打印字符（排除常见的换行符等）
+                if ord(char) < 32 and char not in '\n\r\t':
+                    consecutive_junk += 1
+                    if consecutive_junk >= 5:  # 连续5个不可打印字符
+                        end_pos = i + 5
+                        break
+                else:
+                    consecutive_junk = 0
+
+            extracted_text = extracted_text[start_pos:end_pos].strip()
+
             return {
                 'type': 'text',
                 'content': extracted_text
@@ -124,7 +189,7 @@ class WatermarkService:
             if not output_path:
                 raise ValueError("解密图片水印时必须提供output_path")
 
-            bwm.extract(path=output_path, mode='bit')
+            bwm.extract(filename=encrypted_image_path, wm_shape=wm_shape, mode='img', out_wm_name=output_path)
             return {
                 'type': 'image',
                 'content': output_path

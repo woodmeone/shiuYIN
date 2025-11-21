@@ -12,7 +12,7 @@ class Settings:
     VERSION: str = "1.0.0"
 
     # CORS配置
-    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"]
 
     # 文件上传限制
     MAX_FILE_SIZE: int = 25 * 1024 * 1024  # 25MB
