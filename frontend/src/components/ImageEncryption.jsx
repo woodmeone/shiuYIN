@@ -10,6 +10,8 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 const ImageEncryption = () => {
   const [carrierImage, setCarrierImage] = useState(null);
   const [watermarkImage, setWatermarkImage] = useState(null);
+  const [carrierPreview, setCarrierPreview] = useState(null);
+  const [watermarkPreview, setWatermarkPreview] = useState(null);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [encryptedImageUrl, setEncryptedImageUrl] = useState(null);
@@ -31,12 +33,31 @@ const ImageEncryption = () => {
         return Upload.LIST_IGNORE;
       }
       setCarrierImage(file);
+
+      // 创建预览URL
+      const previewUrl = URL.createObjectURL(file);
+      setCarrierPreview(previewUrl);
+
       return false;
     },
     onRemove: () => {
       setCarrierImage(null);
+      if (carrierPreview) {
+        URL.revokeObjectURL(carrierPreview);
+        setCarrierPreview(null);
+      }
     },
-    fileList: carrierImage ? [carrierImage] : [],
+    fileList: carrierImage ? [{
+      uid: '-1',
+      name: carrierImage.name,
+      status: 'done',
+      url: carrierPreview,
+    }] : [],
+    showUploadList: {
+      showPreviewIcon: true,
+      showRemoveIcon: true,
+    },
+    listType: "picture",
   };
 
   const watermarkUploadProps = {
@@ -48,24 +69,51 @@ const ImageEncryption = () => {
         return Upload.LIST_IGNORE;
       }
       setWatermarkImage(file);
+
+      // 创建预览URL
+      const previewUrl = URL.createObjectURL(file);
+      setWatermarkPreview(previewUrl);
+
       return false;
     },
     onRemove: () => {
       setWatermarkImage(null);
+      if (watermarkPreview) {
+        URL.revokeObjectURL(watermarkPreview);
+        setWatermarkPreview(null);
+      }
     },
-    fileList: watermarkImage ? [watermarkImage] : [],
+    fileList: watermarkImage ? [{
+      uid: '-2',
+      name: watermarkImage.name,
+      status: 'done',
+      url: watermarkPreview,
+    }] : [],
+    showUploadList: {
+      showPreviewIcon: true,
+      showRemoveIcon: true,
+    },
+    listType: "picture",
   };
 
   const handleEncrypt = async () => {
+    console.log('点击了开始加密按钮');
+    console.log('载体图片:', carrierImage);
+    console.log('水印图片:', watermarkImage);
+    console.log('密码:', password ? '已输入' : '未输入');
+
     if (!carrierImage) {
+      console.warn('缺少载体图片');
       message.error('请上传载体图片');
       return;
     }
     if (!watermarkImage) {
+      console.warn('缺少水印图片');
       message.error('请上传水印图片');
       return;
     }
     if (!password.trim()) {
+      console.warn('缺少密码');
       message.error('请输入密码');
       return;
     }
@@ -77,22 +125,50 @@ const ImageEncryption = () => {
     formData.append('password', password);
 
     try {
+      console.log('开始发送图片加密请求...');
       const response = await axios.post('http://localhost:8000/api/encrypt/image', formData, {
         responseType: 'blob',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        // axios 会自动为 FormData 设置正确的 Content-Type 和 boundary
       });
+
+      console.log('加密请求成功，响应:', response);
 
       // 创建预览URL
       const url = URL.createObjectURL(response.data);
       setEncryptedImageUrl(url);
       message.success('加密成功！');
     } catch (error) {
+      console.error('加密失败，错误详情:', error);
+      console.error('错误响应:', error.response);
+
       if (error.response?.status === 413) {
         message.error('文件大小超过25MB限制');
+      } else if (error.response?.status === 500) {
+        // 尝试读取错误详情
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const errorData = JSON.parse(reader.result);
+            const errorMsg = errorData.detail || '服务器内部错误';
+
+            // 检查是否是容量不足的错误
+            if (errorMsg.includes('最多嵌入') || errorMsg.includes('信息量')) {
+              message.error('水印图片太大！请使用更小的水印图片（建议小于100KB）或更大的载体图片', 5);
+            } else {
+              message.error(`加密失败：${errorMsg}`, 5);
+            }
+            console.error('服务器错误详情:', errorData);
+          } catch {
+            message.error('加密失败：服务器内部错误，请检查后端日志');
+          }
+        };
+        if (error.response?.data) {
+          reader.readAsText(error.response.data);
+        } else {
+          message.error('加密失败：服务器内部错误');
+        }
       } else {
-        message.error(`加密失败：${error.response?.data?.detail || error.message}`);
+        message.error(`加密失败：${error.message || '未知错误'}`);
       }
     } finally {
       setLoading(false);
@@ -112,6 +188,19 @@ const ImageEncryption = () => {
   };
 
   const handleReset = () => {
+    // 清理预览URL以释放内存
+    if (carrierPreview) {
+      URL.revokeObjectURL(carrierPreview);
+      setCarrierPreview(null);
+    }
+    if (watermarkPreview) {
+      URL.revokeObjectURL(watermarkPreview);
+      setWatermarkPreview(null);
+    }
+    if (encryptedImageUrl) {
+      URL.revokeObjectURL(encryptedImageUrl);
+    }
+
     setCarrierImage(null);
     setWatermarkImage(null);
     setPassword('');

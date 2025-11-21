@@ -136,22 +136,38 @@ async def encrypt_image(
 
     try:
         # 保存上传的图片
+        print(f"正在保存载体图片到: {carrier_path}")
         with open(carrier_path, 'wb') as f:
             f.write(carrier_content)
+        print(f"载体图片保存成功，大小: {len(carrier_content)} 字节")
+
+        print(f"正在保存水印图片到: {watermark_path}")
         with open(watermark_path, 'wb') as f:
             f.write(watermark_content)
+        print(f"水印图片保存成功，大小: {len(watermark_content)} 字节")
 
         # 转换为PNG格式（如果需要）
+        print(f"检查是否需要转换载体图片为PNG...")
         carrier_path_png = WatermarkService.convert_to_png_if_needed(carrier_path)
+        print(f"载体图片最终路径: {carrier_path_png}")
+
+        print(f"检查是否需要转换水印图片为PNG...")
         watermark_path_png = WatermarkService.convert_to_png_if_needed(watermark_path)
+        print(f"水印图片最终路径: {watermark_path_png}")
 
         # 执行加密
+        print(f"开始执行图片加密...")
+        print(f"  - 载体图片: {carrier_path_png}")
+        print(f"  - 水印图片: {watermark_path_png}")
+        print(f"  - 输出路径: {output_path}")
+
         encrypted_image = WatermarkService.encrypt_image(
             carrier_image_path=carrier_path_png,
             watermark_image_path=watermark_path_png,
             password=password,
             output_path=output_path
         )
+        print(f"图片加密成功: {encrypted_image}")
 
         # 返回加密后的图片
         return FileResponse(
@@ -164,6 +180,10 @@ async def encrypt_image(
         )
 
     except Exception as e:
+        # 打印详细错误信息
+        print(f"[图片加密失败] 详细错误信息：")
+        print(traceback.format_exc())
+
         # 清理临时文件
         for path in [carrier_path, watermark_path, output_path]:
             if os.path.exists(path):

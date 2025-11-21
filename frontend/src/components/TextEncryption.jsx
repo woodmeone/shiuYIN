@@ -65,9 +65,7 @@ const TextEncryption = () => {
       console.log('开始发送加密请求...');
       const response = await axios.post('http://localhost:8000/api/encrypt/text', formData, {
         responseType: 'blob',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        // axios 会自动为 FormData 设置正确的 Content-Type 和 boundary
       });
 
       console.log('加密请求成功，响应:', response);

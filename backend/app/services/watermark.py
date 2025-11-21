@@ -67,20 +67,34 @@ class WatermarkService:
         Returns:
             str: 加密后的图片路径
         """
+        print(f"WatermarkService.encrypt_image 调用:")
+        print(f"  - carrier_image_path 类型: {type(carrier_image_path)}, 值: {carrier_image_path}")
+        print(f"  - watermark_image_path 类型: {type(watermark_image_path)}, 值: {watermark_image_path}")
+        print(f"  - password 长度: {len(password)}")
+        print(f"  - output_path: {output_path}")
+
         # 转换密码
         password_img, password_wm = password_to_int(password)
+        print(f"密码转换完成: password_img={password_img}, password_wm={password_wm}")
 
         # 初始化WaterMark
         bwm = WaterMark(password_img=password_img, password_wm=password_wm)
+        print("WaterMark 对象初始化完成")
 
         # 读取载体图片
+        print(f"正在读取载体图片: {carrier_image_path}")
         bwm.read_img(carrier_image_path)
+        print("载体图片读取完成")
 
         # 读取水印图片
-        bwm.read_wm(watermark_image_path, mode='bit')
+        print(f"正在读取水印图片: {watermark_image_path}, mode='img'")
+        bwm.read_wm(watermark_image_path, mode='img')
+        print("水印图片读取完成")
 
         # 嵌入水印并保存
+        print(f"正在嵌入水印并保存到: {output_path}")
         bwm.embed(output_path)
+        print("水印嵌入完成")
 
         return output_path
 
@@ -131,10 +145,10 @@ class WatermarkService:
         Args:
             encrypted_image_path: 加密图片路径
             password: 用户密码
-            mode: 'text' 或 'bit'
-            output_path: 输出路径（mode='bit'时必需）
+            mode: 'str'(文本) 或 'bit'/'img'(图片)
+            output_path: 输出路径（mode='bit'/'img'时必需）
             wm_bits: 水印比特数（mode='str'时使用，默认400比特）
-            wm_shape: 水印图片尺寸（mode='bit'时使用，默认128x128）
+            wm_shape: 水印图片尺寸（mode='bit'/'img'时使用，默认128x128）
 
         Returns:
             dict: {'type': 'text'|'image', 'content': str|path}
@@ -184,8 +198,8 @@ class WatermarkService:
                 'type': 'text',
                 'content': extracted_text
             }
-        else:
-            # 提取图片水印
+        elif mode in ('bit', 'img'):
+            # 提取图片水印（'bit'和'img'都表示图片模式）
             if not output_path:
                 raise ValueError("解密图片水印时必须提供output_path")
 
@@ -194,6 +208,8 @@ class WatermarkService:
                 'type': 'image',
                 'content': output_path
             }
+        else:
+            raise ValueError(f"不支持的模式: {mode}，请使用 'str', 'bit' 或 'img'")
 
     @staticmethod
     def convert_to_png_if_needed(image_path: str) -> str:
