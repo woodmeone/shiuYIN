@@ -56,7 +56,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Text-Length"],  # 暴露自定义响应头
+    expose_headers=["X-Text-Length", "X-Watermark-Width", "X-Watermark-Height"],  # 暴露自定义响应头
 )
 
 # 添加全局错误处理中间件

@@ -155,6 +155,12 @@ async def encrypt_image(
         watermark_path_png = WatermarkService.convert_to_png_if_needed(watermark_path)
         print(f"水印图片最终路径: {watermark_path_png}")
 
+        # 获取水印图片尺寸
+        from PIL import Image
+        watermark_img = Image.open(watermark_path_png)
+        watermark_width, watermark_height = watermark_img.size
+        print(f"水印图片尺寸: {watermark_width} x {watermark_height}")
+
         # 执行加密
         print(f"开始执行图片加密...")
         print(f"  - 载体图片: {carrier_path_png}")
@@ -169,13 +175,15 @@ async def encrypt_image(
         )
         print(f"图片加密成功: {encrypted_image}")
 
-        # 返回加密后的图片
+        # 返回加密后的图片，在响应头中包含水印尺寸信息
         return FileResponse(
             encrypted_image,
             media_type="image/png",
             filename=f"encrypted_{unique_id}.png",
             headers={
-                "Content-Disposition": f'attachment; filename="encrypted_{unique_id}.png"'
+                "Content-Disposition": f'attachment; filename="encrypted_{unique_id}.png"',
+                "X-Watermark-Width": str(watermark_width),
+                "X-Watermark-Height": str(watermark_height)
             }
         )
 
@@ -256,13 +264,17 @@ async def decrypt_text(
 @router.post("/decrypt/image")
 async def decrypt_image(
     encrypted_image: UploadFile = File(..., description="加密图片"),
-    password: str = Form(..., description="解密密码")
+    password: str = Form(..., description="解密密码"),
+    width: int = Form(..., description="水印图片宽度"),
+    height: int = Form(..., description="水印图片高度")
 ):
     """
     图片水印解密
 
     - **encrypted_image**: 加密图片文件
     - **password**: 解密密码
+    - **width**: 水印图片宽度（加密时显示的尺寸）
+    - **height**: 水印图片高度（加密时显示的尺寸）
     """
     # 验证文件大小
     content = validate_file_size(encrypted_image)
@@ -283,12 +295,13 @@ async def decrypt_image(
         # 如果不是PNG，转换为PNG
         encrypted_path_png = WatermarkService.convert_to_png_if_needed(encrypted_path)
 
-        # 执行解密
+        # 执行解密，使用用户提供的水印尺寸
         result = WatermarkService.decrypt(
             encrypted_image_path=encrypted_path_png,
             password=password,
             mode='bit',
-            output_path=output_path
+            output_path=output_path,
+            wm_shape=(height, width)  # 注意：blind_watermark要求(height, width)顺序
         )
 
         # 返回提取的水印图片

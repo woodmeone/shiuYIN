@@ -58,7 +58,7 @@ const TextDecryption = () => {
 
     try {
       console.log('开始发送解密请求...', { textBits });
-      const response = await axios.post('http://localhost:8000/api/encrypt/decrypt/text', formData, {
+      const response = await axios.post('http://localhost:8901/api/encrypt/decrypt/text', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

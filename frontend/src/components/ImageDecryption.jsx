@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Input, Button, message, Card, Image } from 'antd';
+import { Upload, Input, Button, message, Card, Image, InputNumber, Form, Space } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -10,6 +10,8 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 const ImageDecryption = () => {
   const [encryptedImage, setEncryptedImage] = useState(null);
   const [password, setPassword] = useState('');
+  const [watermarkWidth, setWatermarkWidth] = useState(128); // 水印宽度，默认128
+  const [watermarkHeight, setWatermarkHeight] = useState(128); // 水印高度，默认128
   const [loading, setLoading] = useState(false);
   const [decryptedImageUrl, setDecryptedImageUrl] = useState(null);
 
@@ -35,7 +37,11 @@ const ImageDecryption = () => {
     onRemove: () => {
       setEncryptedImage(null);
     },
-    fileList: encryptedImage ? [encryptedImage] : [],
+    fileList: encryptedImage ? [{
+      uid: '-1',
+      name: encryptedImage.name,
+      status: 'done',
+    }] : [],
   };
 
   const handleDecrypt = async () => {
@@ -47,15 +53,25 @@ const ImageDecryption = () => {
       message.error('请输入密码');
       return;
     }
+    if (!watermarkWidth || watermarkWidth <= 0) {
+      message.error('请输入有效的水印宽度');
+      return;
+    }
+    if (!watermarkHeight || watermarkHeight <= 0) {
+      message.error('请输入有效的水印高度');
+      return;
+    }
 
     setLoading(true);
     const formData = new FormData();
     formData.append('encrypted_image', encryptedImage);
     formData.append('password', password);
+    formData.append('width', watermarkWidth);
+    formData.append('height', watermarkHeight);
 
     try {
       console.log('开始发送解密请求...');
-      const response = await axios.post('http://localhost:8000/api/encrypt/decrypt/image', formData, {
+      const response = await axios.post('http://localhost:8901/api/encrypt/decrypt/image', formData, {
         responseType: 'blob',
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -114,6 +130,8 @@ const ImageDecryption = () => {
   const handleReset = () => {
     setEncryptedImage(null);
     setPassword('');
+    setWatermarkWidth(128);
+    setWatermarkHeight(128);
     setDecryptedImageUrl(null);
   };
 
@@ -134,6 +152,41 @@ const ImageDecryption = () => {
           onChange={(e) => setPassword(e.target.value)}
           style={{ marginBottom: 20 }}
         />
+
+        <Form layout="vertical" style={{ marginBottom: 20 }}>
+          <div style={{
+            padding: '16px',
+            background: '#f5f5f5',
+            borderRadius: '4px',
+            marginBottom: '16px'
+          }}>
+            <p style={{ marginBottom: '12px', color: '#666', fontSize: '14px' }}>
+              请输入加密时保存的水印图片尺寸（在加密成功时显示）
+            </p>
+            <Space size="large">
+              <Form.Item label="水印宽度" style={{ marginBottom: 0 }}>
+                <InputNumber
+                  min={1}
+                  max={2000}
+                  value={watermarkWidth}
+                  onChange={setWatermarkWidth}
+                  placeholder="宽度"
+                  style={{ width: 120 }}
+                />
+              </Form.Item>
+              <Form.Item label="水印高度" style={{ marginBottom: 0 }}>
+                <InputNumber
+                  min={1}
+                  max={2000}
+                  value={watermarkHeight}
+                  onChange={setWatermarkHeight}
+                  placeholder="高度"
+                  style={{ width: 120 }}
+                />
+              </Form.Item>
+            </Space>
+          </div>
+        </Form>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <Button type="primary" onClick={handleDecrypt} loading={loading} style={{ flex: 1 }}>

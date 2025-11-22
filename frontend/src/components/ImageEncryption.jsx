@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Input, Button, message, Card, Image, Row, Col } from 'antd';
+import { Upload, Input, Button, message, Card, Image, Row, Col, Alert } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -15,6 +15,7 @@ const ImageEncryption = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [encryptedImageUrl, setEncryptedImageUrl] = useState(null);
+  const [watermarkSize, setWatermarkSize] = useState(null); // 存储水印尺寸
 
   const validateFileSize = (file) => {
     if (file.size > MAX_FILE_SIZE) {
@@ -126,12 +127,21 @@ const ImageEncryption = () => {
 
     try {
       console.log('开始发送图片加密请求...');
-      const response = await axios.post('http://localhost:8000/api/encrypt/image', formData, {
+      const response = await axios.post('http://localhost:8901/api/encrypt/image', formData, {
         responseType: 'blob',
         // axios 会自动为 FormData 设置正确的 Content-Type 和 boundary
       });
 
       console.log('加密请求成功，响应:', response);
+
+      // 从响应头中获取水印尺寸
+      const width = response.headers['x-watermark-width'];
+      const height = response.headers['x-watermark-height'];
+
+      if (width && height) {
+        setWatermarkSize({ width, height });
+        console.log(`水印尺寸: ${width} x ${height}`);
+      }
 
       // 创建预览URL
       const url = URL.createObjectURL(response.data);
@@ -205,6 +215,7 @@ const ImageEncryption = () => {
     setWatermarkImage(null);
     setPassword('');
     setEncryptedImageUrl(null);
+    setWatermarkSize(null);
   };
 
   return (
@@ -252,6 +263,24 @@ const ImageEncryption = () => {
 
       {encryptedImageUrl && (
         <Card title="加密结果" style={{ marginBottom: 20 }}>
+          {watermarkSize && (
+            <Alert
+              message="重要提示"
+              description={
+                <div>
+                  <p style={{ marginBottom: 8 }}>
+                    <strong>水印图片尺寸：{watermarkSize.width} × {watermarkSize.height}</strong>
+                  </p>
+                  <p style={{ marginBottom: 0 }}>
+                    请妥善保存此尺寸信息，解密时需要使用！
+                  </p>
+                </div>
+              }
+              type="warning"
+              showIcon
+              style={{ marginBottom: 20 }}
+            />
+          )}
           <div style={{ textAlign: 'center' }}>
             <Image
               src={encryptedImageUrl}
