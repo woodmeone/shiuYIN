@@ -13,10 +13,18 @@ from app.api.encrypt import router as encrypt_router
 # 配置 multipart 文件上传大小限制
 try:
     import multipart
-    multipart.MAX_MEMORY_FILE_SIZE = settings.MAX_FILE_SIZE  # 25MB
+    multipart.MAX_MEMORY_FILE_SIZE = settings.MAX_FILE_SIZE  # 50MB
     print(f"[启动] 已配置文件上传限制: {settings.MAX_FILE_SIZE / 1024 / 1024}MB")
 except ImportError:
-    print("[警告] 无法导入 multipart 模块，文件大小限制可能不生效")
+    print("[警告] 无法导入 multipart 模块")
+
+# 配置 Starlette MultiPartParser 大小限制
+try:
+    from starlette.formparsers import MultiPartParser
+    MultiPartParser.max_file_size = settings.MAX_FILE_SIZE  # 50MB
+    print(f"[启动] 已配置 Starlette 限制: {settings.MAX_FILE_SIZE / 1024 / 1024}MB")
+except Exception as e:
+    print(f"[警告] Starlette 限制配置失败: {e}")
 
 
 # 全局错误处理中间件

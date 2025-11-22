@@ -15,7 +15,7 @@ class Settings:
     CORS_ORIGINS: list = ["http://localhost:5173"]
 
     # 文件上传限制
-    MAX_FILE_SIZE: int = 25 * 1024 * 1024  # 25MB
+    MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
 
     # 支持的图片格式
     ALLOWED_IMAGE_FORMATS: set = {"png", "jpg", "jpeg"}

@@ -22,7 +22,7 @@ def validate_file_size(file: UploadFile):
     if file_size > settings.MAX_FILE_SIZE:
         raise HTTPException(
             status_code=413,
-            detail=f"文件大小超过25MB限制（当前：{file_size / 1024 / 1024:.2f}MB）"
+            detail=f"文件大小超过50MB限制（当前：{file_size / 1024 / 1024:.2f}MB）"
         )
 
     # 重置文件指针
