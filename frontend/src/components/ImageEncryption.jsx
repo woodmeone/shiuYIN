@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Input, Button, message, Card, Image, Row, Col, Alert } from 'antd';
+import { Upload, Input, Button, message, Card, Image, Row, Col, Alert, Modal } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -16,6 +16,13 @@ const ImageEncryption = () => {
   const [loading, setLoading] = useState(false);
   const [encryptedImageUrl, setEncryptedImageUrl] = useState(null);
   const [watermarkSize, setWatermarkSize] = useState(null); // 存储水印尺寸
+
+  // 验证错误状态
+  const [errors, setErrors] = useState({
+    carrierImage: false,
+    watermarkImage: false,
+    password: false,
+  });
 
   const validateFileSize = (file) => {
     if (file.size > MAX_FILE_SIZE) {
@@ -39,6 +46,8 @@ const ImageEncryption = () => {
       const previewUrl = URL.createObjectURL(file);
       setCarrierPreview(previewUrl);
 
+      setErrors({ ...errors, carrierImage: false }); // 清除错误状态
+
       return false;
     },
     onRemove: () => {
@@ -59,6 +68,7 @@ const ImageEncryption = () => {
       showRemoveIcon: true,
     },
     listType: "picture",
+    status: errors.carrierImage ? 'error' : undefined, // 添加错误状态
   };
 
   const watermarkUploadProps = {
@@ -74,6 +84,8 @@ const ImageEncryption = () => {
       // 创建预览URL
       const previewUrl = URL.createObjectURL(file);
       setWatermarkPreview(previewUrl);
+
+      setErrors({ ...errors, watermarkImage: false }); // 清除错误状态
 
       return false;
     },
@@ -95,27 +107,21 @@ const ImageEncryption = () => {
       showRemoveIcon: true,
     },
     listType: "picture",
+    status: errors.watermarkImage ? 'error' : undefined, // 添加错误状态
   };
 
   const handleEncrypt = async () => {
-    console.log('点击了开始加密按钮');
-    console.log('载体图片:', carrierImage);
-    console.log('水印图片:', watermarkImage);
-    console.log('密码:', password ? '已输入' : '未输入');
+    // 重置错误状态
+    const newErrors = {
+      carrierImage: !carrierImage,
+      watermarkImage: !watermarkImage,
+      password: !password.trim(),
+    };
+    setErrors(newErrors);
 
-    if (!carrierImage) {
-      console.warn('缺少载体图片');
-      message.error('请上传载体图片');
-      return;
-    }
-    if (!watermarkImage) {
-      console.warn('缺少水印图片');
-      message.error('请上传水印图片');
-      return;
-    }
-    if (!password.trim()) {
-      console.warn('缺少密码');
-      message.error('请输入密码');
+    // 检查是否有错误
+    if (newErrors.carrierImage || newErrors.watermarkImage || newErrors.password) {
+      message.error('请填写所有必填项');
       return;
     }
 
@@ -151,8 +157,10 @@ const ImageEncryption = () => {
       console.error('加密失败，错误详情:', error);
       console.error('错误响应:', error.response);
 
+      let errorMessage = '未知错误';
+
       if (error.response?.status === 413) {
-        message.error('文件大小超过50MB限制');
+        errorMessage = '文件大小超过50MB限制';
       } else if (error.response?.status === 500) {
         // 尝试读取错误详情
         const reader = new FileReader();
@@ -163,23 +171,46 @@ const ImageEncryption = () => {
 
             // 检查是否是容量不足的错误
             if (errorMsg.includes('最多嵌入') || errorMsg.includes('信息量')) {
-              message.error('水印图片太大！请使用更小的水印图片（建议小于100KB）或更大的载体图片', 5);
+              Modal.error({
+                title: '加密失败',
+                content: '水印图片太大！请使用更小的水印图片（建议小于100KB）或更大的载体图片',
+                okText: '确定',
+              });
             } else {
-              message.error(`加密失败：${errorMsg}`, 5);
+              Modal.error({
+                title: '加密失败',
+                content: errorMsg,
+                okText: '确定',
+              });
             }
             console.error('服务器错误详情:', errorData);
           } catch {
-            message.error('加密失败：服务器内部错误，请检查后端日志');
+            Modal.error({
+              title: '加密失败',
+              content: '服务器内部错误，请检查后端日志',
+              okText: '确定',
+            });
           }
         };
         if (error.response?.data) {
           reader.readAsText(error.response.data);
         } else {
-          message.error('加密失败：服务器内部错误');
+          Modal.error({
+            title: '加密失败',
+            content: '服务器内部错误',
+            okText: '确定',
+          });
         }
+        return; // 提前返回，避免下面再次弹窗
       } else {
-        message.error(`加密失败：${error.message || '未知错误'}`);
+        errorMessage = error.message || '未知错误';
       }
+
+      Modal.error({
+        title: '加密失败',
+        content: errorMessage,
+        okText: '确定',
+      });
     } finally {
       setLoading(false);
     }
@@ -247,7 +278,11 @@ const ImageEncryption = () => {
         <Input.Password
           placeholder="请输入加密密码"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors({ ...errors, password: false }); // 清除错误状态
+          }}
+          status={errors.password ? 'error' : undefined}
           style={{ marginBottom: 20 }}
         />
 

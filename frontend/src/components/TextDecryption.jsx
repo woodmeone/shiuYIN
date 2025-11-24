@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Input, Button, message, Card, InputNumber, Tooltip, Alert } from 'antd';
+import { Upload, Input, Button, message, Card, InputNumber, Tooltip, Alert, Modal } from 'antd';
 import { InboxOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -14,6 +14,12 @@ const TextDecryption = () => {
   const [textBits, setTextBits] = useState(400); // 预期文本的比特数，默认400
   const [loading, setLoading] = useState(false);
   const [decryptedText, setDecryptedText] = useState('');
+
+  // 验证错误状态
+  const [errors, setErrors] = useState({
+    encryptedImage: false,
+    password: false,
+  });
 
   const validateFileSize = (file) => {
     if (file.size > MAX_FILE_SIZE) {
@@ -32,21 +38,27 @@ const TextDecryption = () => {
         return Upload.LIST_IGNORE;
       }
       setEncryptedImage(file);
+      setErrors({ ...errors, encryptedImage: false }); // 清除错误状态
       return false;
     },
     onRemove: () => {
       setEncryptedImage(null);
     },
     fileList: encryptedImage ? [encryptedImage] : [],
+    status: errors.encryptedImage ? 'error' : undefined, // 添加错误状态
   };
 
   const handleDecrypt = async () => {
-    if (!encryptedImage) {
-      message.error('请上传加密图片');
-      return;
-    }
-    if (!password.trim()) {
-      message.error('请输入密码');
+    // 重置错误状态
+    const newErrors = {
+      encryptedImage: !encryptedImage,
+      password: !password.trim(),
+    };
+    setErrors(newErrors);
+
+    // 检查是否有错误
+    if (newErrors.encryptedImage || newErrors.password) {
+      message.error('请填写所有必填项');
       return;
     }
 
@@ -76,13 +88,21 @@ const TextDecryption = () => {
       console.error('解密失败，错误详情:', error);
       console.error('错误响应:', error.response);
 
+      let errorMessage = '未知错误';
+
       if (error.response?.status === 413) {
-        message.error('文件大小超过25MB限制');
+        errorMessage = '文件大小超过25MB限制';
       } else if (error.response?.status === 500) {
-        message.error(`解密失败：${error.response?.data?.detail || '服务器内部错误，请检查密码是否正确'}`);
+        errorMessage = error.response?.data?.detail || '服务器内部错误，请检查密码是否正确';
       } else {
-        message.error(`解密失败：${error.message || '未知错误'}`);
+        errorMessage = error.message || '未知错误';
       }
+
+      Modal.error({
+        title: '解密失败',
+        content: errorMessage,
+        okText: '确定',
+      });
     } finally {
       setLoading(false);
     }
@@ -116,7 +136,11 @@ const TextDecryption = () => {
         <Input.Password
           placeholder="请输入解密密码"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors({ ...errors, password: false }); // 清除错误状态
+          }}
+          status={errors.password ? 'error' : undefined}
           style={{ marginBottom: 20 }}
         />
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Input, Button, message, Card, Image, InputNumber, Form, Space } from 'antd';
+import { Upload, Input, Button, message, Card, Image, InputNumber, Form, Space, Modal } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -14,6 +14,14 @@ const ImageDecryption = () => {
   const [watermarkHeight, setWatermarkHeight] = useState(128); // 水印高度，默认128
   const [loading, setLoading] = useState(false);
   const [decryptedImageUrl, setDecryptedImageUrl] = useState(null);
+
+  // 验证错误状态
+  const [errors, setErrors] = useState({
+    encryptedImage: false,
+    password: false,
+    watermarkWidth: false,
+    watermarkHeight: false,
+  });
 
   const validateFileSize = (file) => {
     if (file.size > MAX_FILE_SIZE) {
@@ -32,6 +40,7 @@ const ImageDecryption = () => {
         return Upload.LIST_IGNORE;
       }
       setEncryptedImage(file);
+      setErrors({ ...errors, encryptedImage: false }); // 清除错误状态
       return false;
     },
     onRemove: () => {
@@ -42,23 +51,22 @@ const ImageDecryption = () => {
       name: encryptedImage.name,
       status: 'done',
     }] : [],
+    status: errors.encryptedImage ? 'error' : undefined, // 添加错误状态
   };
 
   const handleDecrypt = async () => {
-    if (!encryptedImage) {
-      message.error('请上传加密图片');
-      return;
-    }
-    if (!password.trim()) {
-      message.error('请输入密码');
-      return;
-    }
-    if (!watermarkWidth || watermarkWidth <= 0) {
-      message.error('请输入有效的水印宽度');
-      return;
-    }
-    if (!watermarkHeight || watermarkHeight <= 0) {
-      message.error('请输入有效的水印高度');
+    // 重置错误状态
+    const newErrors = {
+      encryptedImage: !encryptedImage,
+      password: !password.trim(),
+      watermarkWidth: !watermarkWidth || watermarkWidth <= 0,
+      watermarkHeight: !watermarkHeight || watermarkHeight <= 0,
+    };
+    setErrors(newErrors);
+
+    // 检查是否有错误
+    if (newErrors.encryptedImage || newErrors.password || newErrors.watermarkWidth || newErrors.watermarkHeight) {
+      message.error('请填写所有必填项');
       return;
     }
 
@@ -88,28 +96,50 @@ const ImageDecryption = () => {
       console.error('解密失败，错误详情:', error);
       console.error('错误响应:', error.response);
 
+      let errorMessage = '未知错误';
+
       if (error.response?.status === 413) {
-        message.error('文件大小超过50MB限制');
+        errorMessage = '文件大小超过50MB限制';
       } else if (error.response?.status === 500) {
         // 尝试读取错误详情
         const reader = new FileReader();
         reader.onload = () => {
           try {
             const errorData = JSON.parse(reader.result);
-            message.error(`解密失败：${errorData.detail || '服务器内部错误，请检查密码是否正确'}`);
+            const detail = errorData.detail || '服务器内部错误，请检查密码是否正确';
+            Modal.error({
+              title: '解密失败',
+              content: detail,
+              okText: '确定',
+            });
             console.error('服务器错误详情:', errorData);
           } catch {
-            message.error('解密失败：服务器内部错误，请检查密码是否正确');
+            Modal.error({
+              title: '解密失败',
+              content: '服务器内部错误，请检查密码是否正确',
+              okText: '确定',
+            });
           }
         };
         if (error.response?.data) {
           reader.readAsText(error.response.data);
         } else {
-          message.error('解密失败：服务器内部错误');
+          Modal.error({
+            title: '解密失败',
+            content: '服务器内部错误',
+            okText: '确定',
+          });
         }
+        return; // 提前返回，避免下面再次弹窗
       } else {
-        message.error(`解密失败：${error.message || '未知错误'}`);
+        errorMessage = error.message || '未知错误';
       }
+
+      Modal.error({
+        title: '解密失败',
+        content: errorMessage,
+        okText: '确定',
+      });
     } finally {
       setLoading(false);
     }
@@ -149,7 +179,11 @@ const ImageDecryption = () => {
         <Input.Password
           placeholder="请输入解密密码"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors({ ...errors, password: false }); // 清除错误状态
+          }}
+          status={errors.password ? 'error' : undefined}
           style={{ marginBottom: 20 }}
         />
 
@@ -169,7 +203,11 @@ const ImageDecryption = () => {
                   min={1}
                   max={2000}
                   value={watermarkWidth}
-                  onChange={setWatermarkWidth}
+                  onChange={(value) => {
+                    setWatermarkWidth(value);
+                    setErrors({ ...errors, watermarkWidth: false }); // 清除错误状态
+                  }}
+                  status={errors.watermarkWidth ? 'error' : undefined}
                   placeholder="宽度"
                   style={{ width: 120 }}
                 />
@@ -179,7 +217,11 @@ const ImageDecryption = () => {
                   min={1}
                   max={2000}
                   value={watermarkHeight}
-                  onChange={setWatermarkHeight}
+                  onChange={(value) => {
+                    setWatermarkHeight(value);
+                    setErrors({ ...errors, watermarkHeight: false }); // 清除错误状态
+                  }}
+                  status={errors.watermarkHeight ? 'error' : undefined}
                   placeholder="高度"
                   style={{ width: 120 }}
                 />

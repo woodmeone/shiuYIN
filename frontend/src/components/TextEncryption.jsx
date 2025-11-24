@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Input, Button, message, Card, Image, Alert } from 'antd';
+import { Upload, Input, Button, message, Card, Image, Alert, Modal } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -15,6 +15,13 @@ const TextEncryption = () => {
   const [loading, setLoading] = useState(false);
   const [encryptedImageUrl, setEncryptedImageUrl] = useState(null);
   const [textLength, setTextLength] = useState(null); // 保存加密文本的字符数
+
+  // 验证错误状态
+  const [errors, setErrors] = useState({
+    carrierImage: false,
+    text: false,
+    password: false,
+  });
 
   const validateFileSize = (file) => {
     if (file.size > MAX_FILE_SIZE) {
@@ -33,25 +40,28 @@ const TextEncryption = () => {
         return Upload.LIST_IGNORE;
       }
       setCarrierImage(file);
+      setErrors({ ...errors, carrierImage: false }); // 清除错误状态
       return false;
     },
     onRemove: () => {
       setCarrierImage(null);
     },
     fileList: carrierImage ? [carrierImage] : [],
+    status: errors.carrierImage ? 'error' : undefined, // 添加错误状态
   };
 
   const handleEncrypt = async () => {
-    if (!carrierImage) {
-      message.error('请上传载体图片');
-      return;
-    }
-    if (!text.trim()) {
-      message.error('请输入要加密的文字');
-      return;
-    }
-    if (!password.trim()) {
-      message.error('请输入密码');
+    // 重置错误状态
+    const newErrors = {
+      carrierImage: !carrierImage,
+      text: !text.trim(),
+      password: !password.trim(),
+    };
+    setErrors(newErrors);
+
+    // 检查是否有错误
+    if (newErrors.carrierImage || newErrors.text || newErrors.password) {
+      message.error('请填写所有必填项');
       return;
     }
 
@@ -84,28 +94,50 @@ const TextEncryption = () => {
       console.error('加密失败，错误详情:', error);
       console.error('错误响应:', error.response);
 
+      let errorMessage = '未知错误';
+
       if (error.response?.status === 413) {
-        message.error('文件大小超过25MB限制');
+        errorMessage = '文件大小超过25MB限制';
       } else if (error.response?.status === 500) {
         // 尝试读取错误详情
         const reader = new FileReader();
         reader.onload = () => {
           try {
             const errorData = JSON.parse(reader.result);
-            message.error(`加密失败：${errorData.detail || '服务器内部错误'}`);
+            const detail = errorData.detail || '服务器内部错误';
+            Modal.error({
+              title: '加密失败',
+              content: detail,
+              okText: '确定',
+            });
             console.error('服务器错误详情:', errorData);
           } catch {
-            message.error('加密失败：服务器内部错误，请检查后端日志');
+            Modal.error({
+              title: '加密失败',
+              content: '服务器内部错误，请检查后端日志',
+              okText: '确定',
+            });
           }
         };
         if (error.response?.data) {
           reader.readAsText(error.response.data);
         } else {
-          message.error('加密失败：服务器内部错误');
+          Modal.error({
+            title: '加密失败',
+            content: '服务器内部错误',
+            okText: '确定',
+          });
         }
+        return; // 提前返回，避免下面再次弹窗
       } else {
-        message.error(`加密失败：${error.message || '未知错误'}`);
+        errorMessage = error.message || '未知错误';
       }
+
+      Modal.error({
+        title: '加密失败',
+        content: errorMessage,
+        okText: '确定',
+      });
     } finally {
       setLoading(false);
     }
@@ -146,14 +178,22 @@ const TextEncryption = () => {
           placeholder="请输入要加密的文字内容"
           rows={4}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            setErrors({ ...errors, text: false }); // 清除错误状态
+          }}
+          status={errors.text ? 'error' : undefined}
           style={{ marginBottom: 20 }}
         />
 
         <Input.Password
           placeholder="请输入加密密码"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors({ ...errors, password: false }); // 清除错误状态
+          }}
+          status={errors.password ? 'error' : undefined}
           style={{ marginBottom: 20 }}
         />
 
