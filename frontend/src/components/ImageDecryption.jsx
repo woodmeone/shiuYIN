@@ -79,7 +79,7 @@ const ImageDecryption = () => {
 
     try {
       console.log('开始发送解密请求...');
-      const response = await axios.post('http://localhost:8901/api/encrypt/decrypt/image', formData, {
+      const response = await axios.post('/api/encrypt/decrypt/image', formData, {
         responseType: 'blob',
         headers: {
           'Content-Type': 'multipart/form-data',

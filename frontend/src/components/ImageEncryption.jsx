@@ -133,7 +133,7 @@ const ImageEncryption = () => {
 
     try {
       console.log('开始发送图片加密请求...');
-      const response = await axios.post('http://localhost:8901/api/encrypt/image', formData, {
+      const response = await axios.post('/api/encrypt/image', formData, {
         responseType: 'blob',
         // axios 会自动为 FormData 设置正确的 Content-Type 和 boundary
       });

@@ -6,7 +6,7 @@ import axios from 'axios';
 const { Dragger } = Upload;
 const { TextArea } = Input;
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 const TextEncryption = () => {
   const [carrierImage, setCarrierImage] = useState(null);
@@ -25,7 +25,7 @@ const TextEncryption = () => {
 
   const validateFileSize = (file) => {
     if (file.size > MAX_FILE_SIZE) {
-      message.error(`文件大小超过25MB限制（当前：${(file.size / 1024 / 1024).toFixed(2)}MB）`);
+      message.error(`文件大小超过50MB限制（当前：${(file.size / 1024 / 1024).toFixed(2)}MB）`);
       return false;
     }
     return true;
@@ -73,7 +73,7 @@ const TextEncryption = () => {
 
     try {
       console.log('开始发送加密请求...');
-      const response = await axios.post('http://localhost:8901/api/encrypt/text', formData, {
+      const response = await axios.post('/api/encrypt/text', formData, {
         responseType: 'blob',
         // axios 会自动为 FormData 设置正确的 Content-Type 和 boundary
       });
@@ -97,7 +97,7 @@ const TextEncryption = () => {
       let errorMessage = '未知错误';
 
       if (error.response?.status === 413) {
-        errorMessage = '文件大小超过25MB限制';
+        errorMessage = '文件大小超过50MB限制';
       } else if (error.response?.status === 500) {
         // 尝试读取错误详情
         const reader = new FileReader();
@@ -171,7 +171,7 @@ const TextEncryption = () => {
             <InboxOutlined />
           </p>
           <p className="ant-upload-text">点击或拖拽载体图片到此区域</p>
-          <p className="ant-upload-hint">支持 PNG、JPG 格式，文件大小不超过 25MB</p>
+          <p className="ant-upload-hint">支持 PNG、JPG 格式，文件大小不超过 50MB</p>
         </Dragger>
 
         <TextArea
